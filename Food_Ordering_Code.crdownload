@@ -1,0 +1,1281 @@
+import sqlite3
+from sqlite3 import Error
+import math
+import time
+import random
+
+class Error(Exception):
+    pass
+class WrongEmailID(Error):
+    """Raised when the email ID is incorrect"""
+    pass
+
+class WrongMNo(Error):
+    """Raised when the Mobile No. is not a 10 digit number"""
+    pass
+
+class WrongPIN(Error):
+    """Raised when the UPI PIN is not a 6 digit number"""
+    pass
+
+class USER_Info(object):
+
+    ''' 
+    This class represents the attributes of the User
+        1. Username
+        2. Email Address
+        3. Address
+        4. City
+        5. Password
+        6. Mobile Number
+        7. User ID
+        8. save20
+        9. save50
+    '''
+
+    # User_Info -> Constructor
+    # User fields are kept private.
+    def __init__(self,name,email,address,city,pwd,MNo):
+        self.__name=name
+        self.__email=email
+        self.__address=address
+        self.__city=city
+        self.__pwd=pwd
+        self.__MNo=MNo
+        self.__save20=0 # status of save20 promocode
+        self.__save50=0 # status of save50 promocode
+        self.__UID="" # User ID
+    
+    # getter Functions
+    def getname(self):
+        return self.__name
+
+    def getemail(self):
+        return self.__email
+    
+    def getaddress(self):
+        return self.__address
+    
+    def getcity(self):
+        return self.__city
+    
+    def getpwd(self):
+        return self.__pwd
+    
+    def getMobileNo(self):
+        return self.__MNo
+    
+    def getsave20(self):
+        return self.__save20
+    
+    def getsave50(self):
+        return self.__save50
+    
+    def getUID(self):
+        return self.__UID
+    
+    # setter Functions
+    def setname(self,name):
+        self.__name=name
+
+    def setemail(self,email):
+        self.__email=email
+    
+    def setaddress(self,address):
+        self.__address=address
+
+    def setcity(self,city):
+        self.__city=city
+    
+    def setpwd(self,pwd):
+        self.__pwd=pwd
+    
+    def setMobileNo(self,MNo):
+        self.__MNo=MNo
+    
+    def setsave20(self,save20_status):
+        self.__save20=save20_status
+    
+    def setsave50(self,save50_status):
+        self.__save50=save50_status
+    
+    def setUID(self,uid):
+        self.__UID=uid
+
+class USER(USER_Info):
+
+    ''' This class contains all the Utility Functions related to User.
+        It inherits from the User_Info class.
+        Class Attributes:
+            1. RID -> The restuarant ID from which user is placing order
+        Class Functions:
+            1. SignIn 
+            2. SignUp
+            3. UpdatePWD
+    '''
+    # User -> Constructor
+    def __init__(self,name,email,address,city,pwd,MNo):
+        USER_Info.__init__(self,name,email,address,city,pwd,MNo) # User_Info Constructor
+        self.__C_RID=0  # restuarant user selects to order from
+    
+    # getter functions
+    def getRID(self):
+        return self.__C_RID
+    
+    # setter functions
+    def setRID(self,rid):
+        self.__C_RID=rid
+    
+    def SignUp(self,dbName):
+
+        '''This function for the sign up of new user to the portal. This function itself takes care
+            of the authentication of new user. '''
+
+        # SQL Query to Check if the user already exist in database or not
+        sql_check = "SELECT * FROM Users WHERE EmailID =?" 
+
+        # SQL query to Insert New User to Database
+        """ SQL statement for inserting an entry into the table as per the values provided """
+        sql_insert = '''INSERT INTO Users(Username, Address,City,EmailID,MobileNo,Password,save20_status, save50_status) VALUES(?,?,?,?,?,?,?,?)'''
+
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Check Sign Up is unique or not by matching email ID
+            c.execute(sql_check,(self.getemail(),))
+            records=c.fetchall()
+            if(records==[]): # Email ID is unique
+                # input Password
+                print("Create Password")
+                pwd = input()
+                self.setpwd(pwd)
+                # Provide the values that we have to enter in each column.
+                c.execute(sql_insert, (self.getname(), self.getaddress(), self.getcity(),self.getemail(), self.getMobileNo(), self.getpwd(), self.getsave20(), self.getsave50()))
+                # Commit the changes in the user database.
+                conn.commit()
+                sign_up=True
+            else:
+                sign_up=False
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+        return sign_up
+    
+    def SignIn(self):
+
+        '''This function for the sign in of existing user to the portal. This function itself takes care
+            of the authentication process to check if user has entered correct email and password while Log In. '''
+        
+        # Authenticate the user first
+        # SQL Query to Check if the user exist or not
+        sql_check = "SELECT * FROM Users WHERE EmailID =?" 
+
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Authenticate Sign In by matching email ID from database
+            c.execute(sql_check,(self.getemail(),))
+            records=c.fetchall()
+            if(records==[]): # Email ID doesnot exit in records
+                sign_in = -1
+            else: # Email ID present in database
+                for row in records:
+                    self.setUID(row[0])
+                    self.setname(row[1])
+                    self.setaddress(row[2])
+                    self.setcity(row[3])
+                    self.setMobileNo(row[5])
+                    self.setpwd(row[6])
+                    self.setsave20(row[7])
+                    self.setsave50(row[8])
+                # input Password
+                print("Enter Password")
+                pwd = input()
+                # authenticate password
+                if(pwd==self.getpwd()):
+                    sign_in=1
+                else:
+                    sign_in=-2
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+        
+        return sign_in
+    
+    def UpdatePWD(self,new_pwd):
+
+        '''This function updates the password of the existing user in case a person forgets it.'''
+
+        # sql query to update the Username in table Users at id no. 1.    
+        sql = "UPDATE Users SET Password = ? WHERE id = ?"
+
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            c.execute(sql,(new_pwd,self.getUID(),))
+            conn.commit()
+            print("Password Updated")
+
+        except Error as e:
+            print(e)
+
+        finally:
+            if conn:
+                conn.close()
+
+class RESTAURANT:
+
+    '''This class incorparates all the attributes and functionality for Restaurant.
+        Class Attributes: 
+            1. RID -> Restaurant ID (unique for each)
+            2. Name -> Restaurant Name
+            3. Address
+            4. City
+            5. Rating
+        Class Functions:
+            1. Validate_RID
+            2. MenuDisplay
+            3. extract_item
+            4. UpdateRating
+    '''
+    # Constructor -> Restaurant
+    def __init__(self,RID,name,address,city,rating):
+        self.__RID  = RID
+        self.__name = name
+        self.__address = address
+        self.__city=city
+        self.__rating = rating
+    
+    # getter Functions
+    def getname(self):
+        return self.__name
+
+    def getaddress(self):
+        return self.__address
+    
+    def getcity(self):
+        return self.__city
+    
+    def getRID(self):
+        return self.__RID
+    
+    def getrating(self):
+        return self.__rating
+    
+    # setter Functions
+    def setname(self,name):
+        self.__name=name
+
+    def setaddress(self,address):
+        self.__address=address
+    
+    def setRID(self,rid):
+        self.__RID=rid
+    
+    def setcity(self,city):
+        self.__city=city
+    
+    def setrating(self,rating):
+        self.__rating=rating
+    
+    # validate Resturant ID 
+    def validate_RID(self,dbName,in_rid,user):
+
+        '''This function checks if the user has opted for the correct Restaurant ID or not. '''
+
+        # SQL Query to Check if entered RID is valid or not
+        sql_check = "SELECT * FROM Restaurants WHERE R_ID =? and City=?" 
+
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            c.execute(sql_check,(in_rid,user.getcity()))
+            records=c.fetchall()
+            if(records==[]): # not valid
+                return False
+            else:
+                # If Valid set other attributes of restaurant
+                for row in records: 
+                    self.__RID=in_rid
+                    self.__name=row[1]
+                    self.__address=row[2]
+                    self.__city=row[3]
+                    self.__rating=row[4]
+                return True
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+    
+    # Menu Display
+    def MenuDisplay(self):
+
+        ''' This function displays the restuarant menu '''  
+
+        sql_query = "SELECT * FROM Menu WHERE R_ID=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Execute the query
+            c.execute(sql_query,(self.__RID,))
+            #print(self.__RID)
+            records=c.fetchall()
+            # diplay Menu
+            print ("{:<10} {:<30} {:<15} ".format('Item No.','Item','Price (Rs.)'))
+            print ("{:<10} {:<30} {:<15} ".format('--------','----','-----------'))
+            for row in records:
+                rid,ino,item,price = row
+                print ("{:<10} {:<30} {:<15} ".format(ino,item,price))
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+        
+        print("Enter -")
+        print("1 <Item No.> <Item Quantity> --> To Move the Item to Cart")
+        print("2 <Item No.> <Item Quantity> --> To Move the Item to Wishlist")
+        print("3 --> Go To Cart")
+        print("4 --> Go To Wishlist")
+        print("5 --> Exit from App")
+        print("6 --> Go to Restaurants")
+    
+    def extract_item(self,dbName,item_no):
+        ''' This function will extract the item details from menu '''
+        sql_query = "SELECT * FROM Menu WHERE R_ID=? and Item_No=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Execute the query
+            c.execute(sql_query,(self.__RID,item_no,))
+            #print(self.__RID)
+            records=c.fetchall()
+            return records
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+    
+    def UpdateRating(self,dbName,rate):
+        """SQL statement for selecting each entry""" 
+        # sql query to update the Username in table Users at id no. 1.    
+        sql1 = "UPDATE Restaurants SET Rating = ? WHERE R_ID =?"
+        sql2 = "UPDATE Restaurants SET Users_Rated=? WHERE R_ID =?"
+        sql_fetch = "SELECT * FROM Restaurants WHERE R_ID=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            c.execute(sql_fetch,(self.__RID,))
+            records=c.fetchall()
+            current_rating=records[0][4]
+            current_users=records[0][5]
+            new_rating=((current_rating*current_users)+rate)/(current_users+1)
+            new_users=current_users+1
+            self.setrating(new_rating)
+            c.execute(sql1,(new_rating,self.__RID,))
+            c.execute(sql2,(new_users,self.__RID,))
+            conn.commit()
+        except Error as e:
+            print(e)
+
+        finally:
+            if conn:
+                conn.close()
+
+class ITEM:
+
+    '''This class represents an item from the menu with the following attributes.
+       1. ItemNo -> Item Number (Unique For each Item) 
+       2. Item -> Name of Item
+       3. Quantity -> Quantity Of Item Ordered
+       4. Price -> Total Price for the Item
+    '''
+
+    # Constructor
+    def __init__(self,item_details):
+        self.__ItemNo=item_details[0][1]
+        self.__Item=item_details[0][2]
+        self.__Quantity=item_details[1]
+        self.__Price=item_details[0][3]*self.__Quantity
+    
+    # getter functions
+    def getItemNo(self):
+        return self.__ItemNo
+    
+    def getItem(self):
+        return self.__Item
+    
+    def getPrice(self):
+        return self.__Price
+    
+    def getQuantity(self):
+        return self.__Quantity
+
+    # setter functions
+    def setItemNo(self,ino):
+        self.__ItemNo=ino
+    
+    def setItem(self,item):
+        self.__Item=item
+    
+    def setPrice(self,price):
+        self.__Price=price
+    
+    def setQuantity(self,q):
+        self.__Quantity=q
+    
+class ORDER(ITEM):
+
+    '''This class inherits from the ITEM class. The class has the functionality for placing any order.
+        Class Functions:
+            1. addTpCart
+            2. addToWishlist
+            3. ToCart
+            4. DelFromCart
+            5. ToWishlist
+            6. DelFromWishlist
+            7. discardCart
+            8. MoveToCart
+     '''
+    # Order -> Constructor
+    def __init__(self,item_details):
+        # Initialize Constructor of Parent Class -> Item
+        if(item_details!=[]):
+            ITEM.__init__(self,item_details)
+
+    def addToCart(self,dbName,user):
+        
+        '''This function adds the item to the user's cart.'''
+        
+        #First check if item is already there in cart. For that case, we just have to increase quantity of that
+        #item in cart
+        
+        sql_check = '''SELECT * FROM Cart WHERE U_ID=? and R_ID=? and Item_No=?'''
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            c.execute(sql_check,(user.getUID(),user.getRID(),self.getItemNo(),))
+            records=c.fetchall()
+            if(records==[]): # new item to be added
+                """ SQL statement for inserting an entry into the table as per the values provided """
+                sql_insert = '''INSERT INTO Cart(U_ID, R_ID,Item_No,Item,Quantity,Price) VALUES(?,?,?,?,?,?)'''
+                c.execute(sql_insert,(user.getUID(),user.getRID(),item.getItemNo(),item.getItem(),item.getQuantity(),item.getPrice()))
+            else: # item already in cart, just increase the quantity and update price
+                item_no=records[0][2]
+                quantity=records[0][4]
+                total_price=records[0][5]
+                price=total_price/quantity
+                update_quan = "UPDATE Cart SET Quantity = ? WHERE U_ID = ? and R_ID=? and Item_No=?"
+                update_price = "UPDATE Cart SET PRICE = ? WHERE U_ID = ? and R_ID=? and Item_No=?"
+                c.execute(update_quan,(quantity+item.getQuantity(),user.getUID(),user.getRID(),item_no,))
+                c.execute(update_price,(price*(quantity+item.getQuantity()),user.getUID(),user.getRID(),item_no,))
+            conn.commit()
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+        
+    def addToWishlist(self,dbName,user):
+
+        '''This function adds the item to the user's Wishlist.'''
+        
+        # add item to wishlist for user
+        # first check if item is already there in Wishlist
+        sql_check = '''SELECT * FROM Wishlist WHERE U_ID=? and R_ID=? and Item_No=?'''
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            c.execute(sql_check,(user.getUID(),user.getRID(),self.getItemNo(),))
+            records=c.fetchall()
+            if(records==[]): # new item 
+                """ SQL statement for inserting an entry into the table as per the values provided """
+                sql_insert = '''INSERT INTO Wishlist(U_ID, R_ID,Item_No,Item,Quantity,Price) VALUES(?,?,?,?,?,?)'''
+                c.execute(sql_insert,(user.getUID(),user.getRID(),item.getItemNo(),item.getItem(),item.getQuantity(),item.getPrice()))
+            else: # increase quantity and update price
+                item_no=records[0][2]
+                quantity=records[0][4]
+                total_price=records[0][5]
+                price=total_price/quantity
+                update_quan = "UPDATE Wishlist SET Quantity = ? WHERE U_ID = ? and R_ID=? and Item_No=?"
+                update_price = "UPDATE Wishlist SET PRICE = ? WHERE U_ID = ? and R_ID=? and Item_No=?"
+                c.execute(update_quan,(quantity+item.getQuantity(),user.getUID(),user.getRID(),item_no,))
+                c.execute(update_price,(price*(quantity+item.getQuantity()),user.getUID(),user.getRID(),item_no,))
+            conn.commit()
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+    
+    def ToCart(self,dbName,user):
+        ''' This functions direct the user into his/her Cart. User can view contents of cart,
+            add more items to cart, dicard the cart or proceed to checkout from cart.
+        '''
+        print("---------------------- CART ITEMS --------------------------- \n")
+        empty=0 # if the cart is empty or not
+        # View Cart
+        sql_query = "SELECT * FROM Cart WHERE U_ID=? and R_ID=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Execute the query
+            c.execute(sql_query,(user.getUID(),user.getRID(),))
+            records=c.fetchall()
+            if records==[]: # empty cart
+                print("Your Cart is empty! Please Select from the below Options")
+                empty=1
+            else:
+            # diplay Cart Items
+                print ("{:<10} {:<15} {:<15} {:<15}".format('Item No.','Item','Quantity','Price (Rs.)'))
+                print ("{:<10} {:<15} {:<15} {:<15}".format('--------','----','--------','-----------'))
+                for row in records:
+                    uid, rid, ino,item,q,price = row
+                    print ("{:<10} {:<15} {:<15} {:<15}".format(ino,item,q,price))
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+
+        # Provide options to user once he/she is in the Cart
+        print("Enter-")
+        if(empty): # if cart is empty then only return to menu provided
+            print(" 1 --> Return To Menu")
+        else:
+            # Options Inside CART
+            print(" 1 --> Return To Menu")
+            print("'2 <Item No>' --> To delete the particular item from cart")
+            print(" 3 --> Discard entire order")
+            print(" 4 --> Proceed To CheckOut")
+        
+        
+        opt=input().split(' ')
+        cart_opt = int(opt[0]) # cart option
+
+        if(cart_opt==2):
+            item_no = int(opt[1]) # item to delete from cart
+            return [cart_opt,item_no] # return option
+        else:
+            return [cart_opt,0] # return option
+
+    def DelFromCart(self,dbName,user):
+        
+        ''' This function deletes the item from cart '''
+
+        sql_query = "DELETE FROM Cart WHERE U_ID=? and R_ID=? and Item_No=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Execute the query
+            c.execute(sql_query,(user.getUID(),user.getRID(),self.getItemNo(),))
+            conn.commit()
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+
+    def ToWishlist(self,dbName,user):
+
+        ''' This functions direct the user into his/her Wishlist. User can view contents of wishlist,
+            add more items to wishlist, delete items from wishlist or move the items to cart.
+        '''
+
+        print("----------------- Wishlist ITEMS ------------------- \n")
+        empty=0
+        # View Wishlist
+        sql_query = "SELECT * FROM Wishlist WHERE U_ID=? and R_ID=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Execute the query
+            c.execute(sql_query,(user.getUID(),user.getRID(),))
+            records=c.fetchall()
+            if records==[]:
+                print("Your Wishlist is empty! Please Select from the below Options")
+                empty=1
+            else:
+            # diplay Wishlist Items
+                print ("{:<10} {:<15} {:<15} {:<15}".format('Item No.','Item','Quantity','Price (Rs.)'))
+                print ("{:<10} {:<15} {:<15} {:<15}".format('--------','----','--------','-----------'))
+                for row in records:
+                    uid, rid, ino,item,q,price = row
+                    print ("{:<10} {:<15} {:<15} {:<15}".format(ino,item,q,price))
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+
+        # Provide options
+        print("Enter-")
+        if(empty):
+            print(" 1 --> Return To Menu")
+        else:
+            # Options Wishlist
+            print(" 1 --> Return To Menu")
+            print("'2 <Item No>' --> To delete the particular item from wishlist")
+            print("'3 <Item No>' --> To move item to cart")
+
+        opt=input().split(' ')
+        wl_opt = int(opt[0])
+        if(wl_opt>1):
+            return [wl_opt,int(opt[1])]
+        else:
+            return [wl_opt,0]
+    
+    def DelFromWishlist(self,dbName,user):
+        ''' Delete the item from wishlist '''
+
+        sql_query = "DELETE FROM Wishlist WHERE U_ID=? and R_ID=? and Item_No=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Execute the query
+            c.execute(sql_query,(user.getUID(),user.getRID(),self.getItemNo(),))
+            conn.commit()
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+    
+    def discardCart(self,dbName,user):
+        ''' This function discards the entire cart when opted by user ''' 
+
+        sql_query = "DELETE FROM Cart WHERE U_ID=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Execute the query
+            c.execute(sql_query,(user.getUID(),))
+            conn.commit()
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+    
+    def MoveToCart(self,dbName,user):
+
+        ''' To Move item from wishlist to cart '''
+
+        sql_query = "SELECT * FROM Wishlist WHERE U_ID=? and R_ID=? and Item_No=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            c.execute(sql_query,(user.getUID(),user.getRID(),item.getItemNo(),))
+            records=c.fetchall()
+            item.setQuantity(records[0][4])
+            self.addToCart(dbName,user)
+            conn.commit()
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+
+class Payment_Mode:
+
+    ''' This class has the functionality to process user's order payment.'''
+
+    def DisplayPaymentMethods(self):
+
+        ''' This function displays the payment methods to user and processes the payment.'''
+
+        print(" Following are the payment options:Please select")
+        print("1. GooglePay/BHIM")
+        print("2. Net Banking")
+        print("3. Debit/Credit Card")
+        print("4. Exit")
+        self.a=int(input())
+        if self.a==1:
+            print("Do you wish to continue")
+            print("1.YES")
+            print("2.NO")
+            self.b= int(input())
+            if self.b==1:
+                print("enter your mobile number")
+                while True:
+                    try: 
+                        MNo=int(input()) 
+                        if (MNo<=9999999999 and MNo>=1000000000):
+                            break
+                        raise WrongMNo
+                    except WrongMNo:
+                        print("Not a Valid Mobile Number, try again!")
+                print("Processing......")
+                print("Do not refresh the page")
+                print("Payment Completed")
+                return True
+            elif self.b==2:
+                self.DisplayPaymentMethods()
+       
+        elif self.a==2:
+            print("Do you wish to continue")
+            print("1.YES")
+            print("2.NO")
+            self.d=int(input())
+            if self.d==1:
+                print("enter your PIN")
+                while True:
+                    try: 
+                        upi_pin=int(input()) 
+                        if (upi_pin<=999999 and upi_pin>=100000):
+                            break
+                        raise WrongPIN
+                    except WrongPIN:
+                        print("Not a Valid UPI PIN, try again!")
+                print("Processing......")
+                print("Do not refresh the page")
+                print("Payment Completed")
+                return True
+            elif self.d==2:
+                self.DisplayPaymentMethods()
+       
+        elif self.a==3:
+            print("Do you wish to continue")
+            print("1.YES")
+            print("2.NO")
+            self.f=int(input())
+            if self.f==1:
+                print("Enter you card number")
+                self.g=int(input())
+                print("Enter name on the card")
+                self.g=input()
+                print("Enter validity")
+                self.g=int(input())
+                print("Enter cvv")
+                self.g-int(input())
+                print("Enter OTP")
+                self.g=int(input())
+                print("Processing......")
+                print("Do not refresh the page")
+                print("Payment Completed")
+                return True
+                #print("Your order will be deleiverd in......")
+           
+            elif self.f==2:
+                self.DisplayPaymentMethods()
+        else:
+            return False
+
+class PAYMENT(Payment_Mode): 
+
+    ''' This class Calculates the bill for the user.'''
+ 
+    def __init__(self,basebill):
+        self.__basebill=basebill
+ 
+    # getter functions
+    def getbasebill(self):
+        return self.__basebill
+ 
+    #setter functions
+    def setbasebill(self,basebill):
+        self.__basebill=basebill
+ 
+    def CalculateBill(self,dbName,user,Restuarant):
+        ''' The function calculates the base bill as per the promo code applied by the user. 
+            It doesnot process the order until the base bill has some minimum value.
+        '''
+        sql_query = "SELECT * FROM Cart WHERE U_ID=? and R_ID=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            c.execute(sql_query,(user.getUID(),user.getRID(),))
+            cart_records=c.fetchall()
+            for cart_items in cart_records:
+                self.__basebill = self.__basebill + cart_items[5]
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+        
+        print("Bill Total:",self.__basebill)
+
+        print("Apply promocode")
+        print("1. Apply SAVE20")
+        print("2. Apply SAVE50")
+        print("3. Continue without PromoCode")
+        code = int(input())
+        if code==1:
+            # check validity of promocodes
+            if user.getsave20()==0:
+                print("Promocode Applied")
+                self.__basebill=self.__basebill-20
+                user.setsave20(1)
+                self.Updatestatus20(dbName,user,1)
+                print("Bill Total:"+str(self.__basebill))
+            else:
+                print("Promo Code Not Valid")
+                print("Bill Total:"+str(self.__basebill))
+ 
+        elif code==2:
+            # check validity of promocodes
+            if user.getsave50()==0:
+                print("Promocode Applied")
+                self.__basebill=self.__basebill-50
+                user.setsave50(1)
+                self.Updatestatus50(dbName,user,1)
+                print("Bill Total:"+ str(self.__basebill))
+            else:
+                print("Promo Code Not Valid")
+                print("Bill Total:"+ str(self.__basebill))
+ 
+        if self.__basebill>100:
+            pay_status=self.DisplayPaymentMethods()
+            if(pay_status):
+                return 2
+            else:
+                return 1
+ 
+        else:
+            amt = 100 - self.__basebill
+            print("Minimum Order Value of Rs. 100 required. \n Add items worth "+str(amt)+" to make your order eligible for delievery.")
+            print("Enter 1 -> Menu Display")
+            return 1 # again go to menu
+ 
+   
+    def Updatestatus20(self,dbName,user,new_status20):
+
+        ''' This function updates the status of the promo code in the user's database once the promo code is used.'''
+        # sql query to update the Username in table Users at id no. 1.    
+        sql = "UPDATE Users SET save20_status = ? WHERE id = ?"
+ 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            c.execute(sql,(new_status20,user.getUID(),))
+            conn.commit()
+            # print("Promocode Status Updated")
+ 
+        except Error as e:
+            print(e)
+ 
+        finally:
+            if conn:
+                conn.close()
+   
+    def Updatestatus50(self,dbName,user,new_status50):
+
+        ''' This function updates the status of the promo code in the user's database once the promo code is used.'''
+
+        sql = "UPDATE Users SET save50_status = ? WHERE id = ?"
+ 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            c.execute(sql,(new_status50,user.getUID(),))
+            conn.commit()
+            # print("Promocode status updated")
+ 
+        except Error as e:
+            print(e)
+ 
+        finally:
+            if conn:
+                conn.close()
+
+class TimeTracker:
+
+    ''' This class tracks the delivery time of order'''
+    
+    def start(self):
+        ''' Function to capture start time of delivery. '''
+        self.start_time = time.perf_counter()
+        #print("Start Time:",str(self.start_time))
+        
+    def timeReporter(self,act_time,est_time):
+        ''' Function to track the order in real time. '''
+        threshold=est_time+0.1*est_time
+        flag=1
+        if(act_time>threshold): # actual delivery time is more than 10% of estimated
+            while((time.perf_counter()-self.start_time)<=act_time):
+                if(flag and (time.perf_counter()-self.start_time)>=threshold):
+                    print("Order will take longer than estimated")
+                    print("Do you wish to cancel the order?")
+                    print("1: Continue to Order")
+                    print("2. Cancel Order")
+                    choice=int(input("Please enter your Choice \n"))
+                    if choice==2: #order cancelled
+                        print("Order cancelled. You can expect a refund within 7 days of placing the order.")
+                        print("Shop Again!!")
+                        return 2
+                    else: # continue
+                        flag=0
+        else: # order is on time
+            while((time.perf_counter()-self.start_time)<=act_time):
+                continue
+        
+        print(f"Order delivered in : {act_time:0.2f} seconds")
+        return 1 
+
+# ******************* MAIN *********************************************************************
+if __name__=="__main__":
+
+    dbName = "Food_Ordering.db" #name of the database
+    
+    # Display Functions
+    def display_UserOptions():
+        ''' This function displays the Portal Options for signIn, signUp or exit.'''
+        print("Please select from the following options")
+        print("1. Sign In")
+        print("2. Sign Up")
+        print("3. Exit")
+
+    
+    def est_time(rest_address,user_address):
+        ''' Function to estimate Delivery Time based on the distance between user and restaurant'''
+        rest_coord=[]
+        user_coord=[]
+
+        # extract coordinates from the input address string
+        rest_coord.append(int(rest_address[1:2]))
+        rest_coord.append(int(rest_address[3:4]))
+        #rest_coord.append(int(rest_address[5:6]))
+
+        user_coord.append(int(user_address[1:2]))
+        user_coord.append(int(user_address[3:4]))
+        #user_coord.append(int(user_address[5:6]))
+        dist=0
+        # calculate distance in Km
+        for i in range(0,2):
+            dist_sq=(user_coord[i]-rest_coord[i])**2
+            if(dist_sq!=0):
+                dist = dist + math.sqrt(dist_sq)
+        
+        # calculate time -> Assuming rate = 1 minute per km
+        rate=1 # 1 sec/km # Time taken in seconds to demonstrate tracking in real time easily
+        prep_time=15 # time to prepare items
+        time=prep_time + dist*rate # estimated delivery time
+        
+        return time
+
+    def display_restaurant(dbName,user_address,user_city):
+        ''' This function displays the Restaurants in the User's City'''
+
+        print("Please select the restaurant you wish to order from")
+        # This function will fetch the restuarants from database and display them in order.
+        sql_query = "SELECT * FROM Restaurants WHERE City=?" 
+        try:
+            conn = sqlite3.connect(dbName)
+            c = conn.cursor()
+            # Execute the query
+            c.execute(sql_query,(user_city,))
+            records=c.fetchall()
+            # diplay Restaurants 
+            print ("{:<8} {:<15} {:<15} {:<10} {:<15}".format('R.No','Restuarant','Address','Rating','Estimated Delivery (min)'))
+            print ("{:<8} {:<15} {:<15} {:<10} {:<15}".format('----','----------','-------','------','-----------------------'))
+            for row in records:
+                id,name,address,city,rating,users = row
+                # estimate delivery time
+                d_time=est_time(address,user_address)
+                
+                print ("{:<8} {:<15} {:<15} {:<10} {:<15}".format(id,name,address,rating,d_time))
+        except Error as e:
+            print("Error Occured")
+            print(e)
+        finally:
+            if conn:
+                conn.close()
+    
+    
+    # *************************************************************************************
+    # START 
+    print("Welcome to the Portal!")
+    display_UserOptions()
+    userIn=int(input())
+    while(userIn!=3):
+        if(userIn==1): # Sign In
+            print("Enter Email ID")
+            email=input()
+            # Authenticate the user fields
+            existing_user=USER("",email,"","","","") # Object for User -> defines existing user
+            sign_in = existing_user.SignIn()
+            if(sign_in==1):
+                print("Welcome "+ existing_user.getname())
+                # User is Logged In 
+                # Display Restaurnats in user's city
+                display_restaurant(dbName,existing_user.getaddress(),existing_user.getcity())
+                # input selected Restaurant ID
+                RID=int(input("Enter the Restaurant Number (R.No.) \n"))
+                # Restaurant Object
+                Restuarant=RESTAURANT(RID,"","","",-1)
+                # Check if its a valid choice or not
+                IsValid=Restuarant.validate_RID(dbName,RID,existing_user)
+                while(IsValid==False):
+                    print("Invalid Restaurant Number. Please re-enter")
+                    RID=int(input())
+                    IsValid=Restuarant.validate_RID(dbName,RID,existing_user)
+                if(IsValid):
+                        existing_user.setRID(RID)
+                        # proceed to Menu Display
+                        print("Menu of "+ Restuarant.getname())
+                        Restuarant.MenuDisplay()
+                        opt=0
+                        repeat=1 # 1 if we want to repeat taking inputs
+                        while(opt!=5): # donot exit
+                            if(repeat==1):
+                                sel_option=input().split(' ')
+                                opt = int(sel_option[0]) # option
+                            if(opt==0):
+                                Restuarant.MenuDisplay()
+                                repeat=1
+                            if(opt==6):
+                                # Restaurant Object
+                                display_restaurant(dbName,existing_user.getaddress(),existing_user.getcity())
+                                # input selected Restaurant ID
+                                RID=int(input("Enter the Restaurant Number (R.No.) \n"))
+                                # Restaurant Object
+                                Restuarant=RESTAURANT(RID,"","","",-1)
+                                # Check if its a valid choice or not
+                                IsValid=Restuarant.validate_RID(dbName,RID,existing_user)
+                                while(IsValid==False):
+                                    print("Invalid Restaurant Number. Please re-enter")
+                                    RID=int(input())
+                                    IsValid=Restuarant.validate_RID(dbName,RID,existing_user)
+                                if(IsValid):
+                                        existing_user.setRID(RID)
+                                        # proceed to Menu Display
+                                        print("Menu of "+ Restuarant.getname())
+                                        Restuarant.MenuDisplay()
+                                        opt=0
+                                        repeat=1 # 1 if we want to repeat taking inputs
+                            if(opt==3):
+                                # Go To Cart
+                                order=ORDER([])
+                                cart_opt=order.ToCart(dbName,existing_user)
+                                if(cart_opt[0]==1): # return to Menu from Cart
+                                    print("Menu of "+ Restuarant.getname())
+                                    Restuarant.MenuDisplay()
+                                    repeat=1
+                                    opt=0
+                                
+                                    
+                                elif(cart_opt[0]==2): # delete item from cart
+                                    item_details=Restuarant.extract_item(dbName,cart_opt[1])
+                                    item_details.append(0)
+                                    # create object of item
+                                    item=ITEM(item_details)
+                                    order=ORDER(item_details)
+                                    order.DelFromCart(dbName,existing_user) # delete
+                                    opt=3
+                                    repeat=0 # set to zero as 
+                                    #pass
+                                elif(cart_opt[0]==3): # discard
+                                    order.discardCart(dbName,existing_user)
+                                    opt=3 # View Cart
+                                    repeat=0 # no need to take input as it is already set to 3 in previous line
+
+                                else: # CheckOut
+                                    # Code for CheckOut 
+                                    #print("Inside CheckOut")
+                                    checkout=PAYMENT(0)
+                                    x=checkout.CalculateBill(dbName,existing_user,Restuarant)
+                                    if(x==1): #Return to menu to add more items
+                                        opt=0
+                                        repeat=0
+                                    elif(x==2):
+                                        # Payment Successful
+                                        # 1. Estimate Order Delivery Time and Display
+                                        estimated_del_time=est_time(Restuarant.getaddress(),existing_user.getaddress())
+                                        print("Your order will be delivered within ",str(estimated_del_time)," sec(s)")
+                                        order.discardCart(dbName,existing_user)
+                                        # 2. Order Tracking 
+                                        track=TimeTracker()
+                                        # Start timer
+                                        track.start()
+                                        # generate random delivery time
+                                        act_delivery_time=random.uniform(estimated_del_time-15,estimated_del_time+20)
+                                        # print("Actual Delivery Time=",str(act_delivery_time))
+                                        Iscancel=track.timeReporter(act_delivery_time,estimated_del_time)
+                                        if(Iscancel==2): # Order Cancelled
+                                            repeat=0
+                                            opt=5 # exit
+                                        else: # delivered on time
+                                            print("Enter") 
+                                            print("1: To give feedback")
+                                            print("2: To exit")
+                                            f=int(input())
+                                            if(f==1): # take feedback
+                                                print("Rate Food on the scale of 1 to 5")
+                                                rate_food=int(input())
+                                                # Write update rating function
+                                                Restuarant.UpdateRating(dbName,rate_food)
+                                                print("Rate App on the scale of 1 to 5")
+                                                rate_app=int(input())
+                                                print("Thank You for your valuable feedback !")
+                                                print("Enter-")
+                                                print("1: To order again")
+                                                print("2: EXit")
+                                                y=int(input())
+                                                if(y==1):
+                                                    display_restaurant(dbName,existing_user.getaddress(),existing_user.getcity())
+                                                    # input selected Restaurant ID
+                                                    RID=int(input("Enter the Restaurant Number (R.No.) \n"))
+                                                    # Restaurant Object
+                                                    Restuarant=RESTAURANT(RID,"","","",-1)
+                                                    # Check if its a valid choice or not
+                                                    IsValid=Restuarant.validate_RID(dbName,RID,existing_user)
+                                                    while(IsValid==False):
+                                                        print("Invalid Restaurant Number. Please re-enter")
+                                                        RID=int(input())
+                                                        IsValid=Restuarant.validate_RID(dbName,RID)
+                                                    if(IsValid):
+                                                            existing_user.setRID(RID)
+                                                            # proceed to Menu Display
+                                                            print("Menu of "+ Restuarant.getname())
+                                                            Restuarant.MenuDisplay()
+                                                            opt=0
+                                                            repeat=1 # 1 if we want to repeat taking inputs
+                                                else:
+                                                    repeat=0
+                                                    opt=5
+                                                    pass
+                                            elif(f==2): # Exit
+                                                opt=5
+                                                userIn=3
+                                                pass
+                                            pass
+                                        pass
+                                    pass  
+                            elif(opt==4):
+                                # Go To Wishlist
+                                order=ORDER([])
+                                wl_opt=order.ToWishlist(dbName,existing_user)
+                                if(wl_opt[0]==1): # return to Menu from Wishlist
+                                    Restuarant.MenuDisplay()
+                                    print("Enter -")
+                                    print("1 <Item No.> <Item Quantity> --> Add the Item to Cart")
+                                    print("2 <Item No.> <Item Quantity> --> Add the Item to Wishlist")
+                                    print("3 --> Go To Cart")
+                                    print("4 --> Go To Wishlist")
+                                    print("5 --> Exit from App")
+                                    repeat=1
+                                    opt=6
+                                elif(wl_opt[0]==2): # delete item from wishlist
+                                    item_details=Restuarant.extract_item(dbName,wl_opt[1])
+                                    item_details.append(0)
+                                    item=ITEM(item_details)
+                                    order=ORDER(item_details)
+                                    order.DelFromWishlist(dbName,existing_user) # delete
+                                    opt=4
+                                    repeat=0
+                                elif(wl_opt[0]==3): # move item to cart from wishlist
+                                    item_details=Restuarant.extract_item(dbName,wl_opt[1])
+                                    item_details.append(0)
+                                    item=ITEM(item_details)
+                                    order=ORDER(item_details)
+                                    order.MoveToCart(dbName,existing_user)
+                                    order.DelFromWishlist(dbName,existing_user)
+                                    opt=4
+                                    repeat=0
+                            elif(opt==1 or opt==2): # add item to cart or wishlist
+                                item_no  = int(sel_option[1]) # item number
+                                item_quantity=int(sel_option[2]) #item quantity
+                                item_details=Restuarant.extract_item(dbName,item_no)
+                                
+                                item_details.append(item_quantity)
+                                
+                                # create object of item
+                                item=ITEM(item_details)
+                                # add item to cart or wishlist according to opt
+                                order=ORDER(item_details)
+                                if(opt==1): # cart
+                                    #print(user_details)
+                                    cart_opt=order.addToCart(dbName,existing_user)
+                                else: # wishlist
+                                    order.addToWishlist(dbName,existing_user)
+                        if(opt==5): # exit from app
+                            userIn=3  # exit                      
+            else:
+                if(sign_in==-1):
+                    print("This email ID is not registered. Please Login Again")
+                    userIn=1 # Login again
+                else:
+                    print("Incorrect Password. Select")
+                    print("1: Login Again")
+                    print("2: Forgot Password")
+                    userIn=int(input())
+                    if(userIn==1):
+                        userIn=1
+                    elif(userIn==2):
+                        pwd_new=input("Create new Password \n")
+                        existing_user.UpdatePWD(pwd_new)
+                        display_UserOptions()
+                        userIn=int(input())
+                    
+        elif(userIn==2): # Sign Up
+            
+            # Sign Up -> New User 
+            print("Enter Name to register")
+            name=input()
+            print("Enter Address")
+            address=input()
+            print("Enter City")
+            city=input()
+            print("Enter Mobile Number")
+            while True:
+                try: 
+                    MNo=int(input()) 
+                    if (MNo<=9999999999 and MNo>=1000000000):
+                        break
+                    raise WrongMNo
+                except WrongMNo:
+                    print("Not a Valid Mobile Number, try again!")
+            print("Enter the Email ID for Sign Up")
+            while True:
+                try: 
+                    email=input() 
+                    verf='@gmail.com'
+                    if (email[-10:]==verf):
+                        print("Email ID registered successfully.")
+                        #print("Proceed with next steps")
+                        break
+                    raise WrongEmailID
+                except WrongEmailID:
+                    print("Not a Valid Email Address, try again!")
+
+            # create new user
+            new_user=USER(name,email,address,city,"",MNo)
+
+            sign_up=new_user.SignUp(dbName)
+
+            if(sign_up):
+                print("Sign Up Successful!")
+                display_UserOptions()
+                userIn=int(input())
+            else:
+                print("This Email ID is already registered. Please Sign In or Sign Up with Another Email")
+                display_UserOptions()
+                userIn=int(input())
+
+        elif(userIn!=1 & userIn!=2):
+            
+            # If user enters incorrect user option
+            print("Invalid User Option! Please re-enter")
+            display_UserOptions()
+            userIn=int(input())

@@ -1,0 +1,268 @@
+import sqlite3
+from sqlite3 import Error
+
+#Function to create a new database 
+def createNewDatabase(dbName):
+    """ create a SQLite database """
+    conn = None
+    try:
+        #connect database to server
+        conn = sqlite3.connect(dbName)
+        print("A new database has been created.")
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            #close the connection
+            conn.close()
+
+#Function to create new table -> For users database
+def createUserTable(dbName):
+    """SQL statement for creating a new table"""
+
+    # sql query to create table Users with following columns -> id, Username, Address, EmailID, <obileNo, Password, save50_status, save20_status
+    # PRIMARY KEY inserts a unique number for each record in the table. 
+    
+    sql = "CREATE TABLE IF NOT EXISTS Users(id integer PRIMARY KEY,UserName VARCHAR(255),Address VARCHAR(255), City VARCHAR(255),EmailID VARCHAR(255), MobileNo integer, Password VARCHAR(255), save20_status int, save50_status int);"
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        c.execute(sql) #executing sql command.
+        print("A new table has been created.")
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+#Function to create new table -> For Restaurant Database
+def createRestTable(dbName):
+    """SQL statement for creating a new table"""
+
+    # sql query to create table Users with following columns -> id, Username, Address, EmailID, <obileNo, Password, save50_status, save20_status
+    # PRIMARY KEY inserts a unique number for each record in the table. 
+    
+    sql = "CREATE TABLE IF NOT EXISTS Restaurants(R_ID integer PRIMARY KEY,Name VARCHAR(255),Address VARCHAR(255), City VARCHAR(255),Rating double,Users_Rated integer);"
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        c.execute(sql) #executing sql command.
+        print("A new table has been created.")
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+# Function to insert restaurant entries in the table. 
+def insert_rest(dbName, name, address,city,rating,users):
+    """ SQL statement for inserting an entry into the table as per the values provided """
+    sql = '''INSERT INTO Restaurants(Name, Address,City,Rating,Users_Rated) VALUES(?,?,?,?,?)'''
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        # Here while executing the query, provide the values that we have to enter in each column.
+        c.execute(sql, (name, address, city,rating,users))
+        print("A new entry has been created.")
+        # commit the changes in the table- database.
+        conn.commit()
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+# Function to insert user in the table. 
+def insert_user(dbName, name, address,city,emailID,MobileNo,Pwd,save20,save50):
+    """ SQL statement for inserting an entry into the table as per the values provided """
+    sql = '''INSERT INTO Users(Username, Address,City,EmailID,MobileNo,Password,save20_status, save50_status) VALUES(?,?,?,?,?,?,?,?)'''
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        # Here while executing the query, provide the values that we have to enter in each column.
+        c.execute(sql, (name, address,city,emailID,MobileNo,Pwd,save20,save50 ))
+        print("A new entry has been created.")
+        # commit the changes in the table- database.
+        conn.commit()
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+#CART
+#Function to create new table -> For Cart Database
+def createCartTable(dbName):
+    """SQL statement for creating a new table"""
+
+    # sql query to create table Users with following columns -> id, Username, Address, EmailID, <obileNo, Password, save50_status, save20_status
+    # PRIMARY KEY inserts a unique number for each record in the table. 
+    
+    sql = "CREATE TABLE IF NOT EXISTS Cart(U_ID integer,R_ID integer,Item_No integer,Item VARCHAR(255),Quantity integer, Price double);"
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        c.execute(sql) #executing sql command.
+        print("A new table has been created.")
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+# Function to insert entries in the cart. 
+def insert_item_cart(dbName, user_id,rid,item, quantity, price):
+    """ SQL statement for inserting an entry into the table as per the values provided """
+    sql = '''INSERT INTO Cart(U_ID,R_ID,Item_No,Item,Quantity,Price) VALUES(?,?,?,?,?,?)'''
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        # Here while executing the query, provide the values that we have to enter in each column.
+        c.execute(sql, (user_id, item,quantity,price))
+        print("A new entry has been created.")
+        # commit the changes in the table- database.
+        conn.commit()
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+# Wishlist
+# Function to create new table -> For Wishlist Database
+def createWishlistTable(dbName):
+    """SQL statement for creating a new table"""
+
+    # sql query to create table Users with following columns -> id, Username, Address, EmailID, <obileNo, Password, save50_status, save20_status
+    # PRIMARY KEY inserts a unique number for each record in the table. 
+    
+    sql = "CREATE TABLE IF NOT EXISTS Wishlist(U_ID integer,R_ID integer,Item_No integer,Item VARCHAR(255),Quantity integer, Price double);"
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        c.execute(sql) #executing sql command.
+        print("A new table has been created.")
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+# Function to insert entries in the cart. 
+def insert_item_wishlist(dbName, user_id,item,price):
+    """ SQL statement for inserting an entry into the table as per the values provided """
+    sql = '''INSERT INTO Wishlist(User_ID,Item,Price) VALUES(?,?,?)'''
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        # Here while executing the query, provide the values that we have to enter in each column.
+        c.execute(sql, (user_id, item,price))
+        print("A new entry has been created.")
+        # commit the changes in the table- database.
+        conn.commit()
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+# Menu
+# Function to create new table -> For Menu Database
+def createMenuTable(dbName):
+    """SQL statement for creating a new table"""
+
+    # sql query to create table Users with following columns -> id, Username, Address, EmailID, <obileNo, Password, save50_status, save20_status
+    # PRIMARY KEY inserts a unique number for each record in the table. 
+    
+    sql = "CREATE TABLE IF NOT EXISTS Menu(R_ID integer,Item_No integer,Item VARCHAR(255), Price double);"
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        c.execute(sql) #executing sql command.
+        print("A new table has been created.")
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+# Function to insert entries in the cart. 
+def insert_menu(dbName, r_id,i_no,item,price):
+    """ SQL statement for inserting an entry into the table as per the values provided """
+    sql = '''INSERT INTO Menu(R_ID,Item_No,Item,Price) VALUES(?,?,?,?)'''
+
+    try:
+        conn = sqlite3.connect(dbName)
+        c = conn.cursor()
+        # Here while executing the query, provide the values that we have to enter in each column.
+        c.execute(sql, (r_id,i_no,item,price))
+        print("A new entry has been created.")
+        # commit the changes in the table- database.
+        conn.commit()
+    except Error as e:
+        print(e)
+    finally:
+        if conn:
+            conn.close()
+
+
+if __name__ == '__main__':
+
+    dbName = "Food_Ordering.db" #name of the database
+    createNewDatabase(dbName) # create database
+
+    # User Database 
+    createUserTable(dbName) # create USER table
+    insert_user(dbName, "Mansi","(5,5)","Delhi","mansi@gmail.com",4572174987,"xyz@mansi",0,0) # insert new entry
+    insert_user(dbName, "Gyanvi","(9,8)","Delhi","gyanvi@gmail.com",4572174982,"xyz@gyanvi",0,0) # insert new entry
+    insert_user(dbName, "Harshit","(7,0)","Delhi","harshit@gmail.com",4882174982,"xyz@harshit",0,0) # insert new entry
+    insert_user(dbName, "Saksham","(2,8)","Delhi","saksham@gmail.com",4572199982,"xyz@saksham",0,0) # insert new entry
+    insert_user(dbName, "El","(1,8)","Gurgaon","El@gmail.com",4572099982,"xyz@El",0,0) # insert new entry
+    insert_user(dbName, "Arya","(2,7)","Gurgaon","Arya@gmail.com",4472199982,"xyz@Arya",0,0) # insert new entry
+    insert_user(dbName, "Rohit","(2,8)","Gurgaon","Rohit@gmail.com",4572139982,"xyz@Rohit",0,0) # insert new entry
+    insert_user(dbName, "Khushi","(2,4)","Gurgaon","Khushi@gmail.com",4572179982,"xyz@Khushi",0,0) # insert new entry
+
+    # Restuarant Database
+    createRestTable(dbName)
+    insert_rest(dbName,"Dominos Pizza","(3,5)","Delhi",3,3)
+    insert_rest(dbName,"Pyramid Cafe","(8,2)","Gurgaon",4,8)
+    insert_rest(dbName,"Diggin","(1,5)","Delhi",4,10)
+    insert_rest(dbName,"Bakebook Bakery","(8,2)","Delhi",5,5)
+    insert_rest(dbName,"Goosebumps","(3,2)","Gurgaon",3,8)
+
+
+    # Cart Database
+    createCartTable(dbName)
+    #insert_item_cart(dbName,1,"Pizza",2,2*100)
+
+    # Wishlist Database
+    createWishlistTable(dbName)
+    #insert_item_wishlist(dbName,1,"Garlic Bread",100)
+
+    # Menu Database
+    createMenuTable(dbName)
+    insert_menu(dbName,1,1,"Pizza",200)
+    insert_menu(dbName,1,2,"Garlic Bread",110)
+    insert_menu(dbName,2,1,"Veg Burger",80)
+    insert_menu(dbName,2,2,"Sweet potato",90)
+    insert_menu(dbName,3,1,"White sauce pasta",500)
+    insert_menu(dbName,3,2,"Veg Hakka Noodles",400)
+    insert_menu(dbName,4,1,"New York cheesecake",400)
+    insert_menu(dbName,4,2,"Pancakes",120)
+    insert_menu(dbName,5,1,"Chocolate cupcake",100)
+    insert_menu(dbName,5,2,"Truffle",600)
+
+    
+    
+    # selectAll(dbName) # select database
+    # UpdateDatabase(dbName) # upate entry in database 
+    # print("Yay! Everything working!")
